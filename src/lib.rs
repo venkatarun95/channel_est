@@ -1,25 +1,18 @@
-//! Module for channel estimation for multiple frequencies
+//! Module for channel estimation for multiple frequencies. We assume the following packet
+//! structure, which mirrors the 802.11 standard:
+//! <Short Preamble> <Long Training Sequence> [<Data symbols> ...]
+//!
+//! Short Preamble:
+//!  - 16 repeats of a short training sequence
+//!
+//! Long Preamble:
+//!  - <Guard Interval> 2 * <Long Training Sequence>
+//!    The guard interval is 1/2 the size of the LTS
+//!    In 802.11, the LTS is 64 samples long. The symbols are in `data/lts.txt`
 
 mod config;
+mod lts_align;
 mod pkt_trigger;
 
 pub use pkt_trigger::PktTrigger;
-
-use num::Complex;
-
-fn gcd(a: u64, b: u64) -> u64 {
-    if b == 0 {
-        a
-    } else {
-        gcd(b, a % b)
-    }
-}
-
-/// Generate a Zadoff-Chu sequence with given N and u
-fn zadoff_chu(n: u64, u: u64) -> Vec<Complex<f32>> {
-    assert_eq!(gcd(n, u), 1);
-    use std::f32::consts::PI;
-    (0..n)
-        .map(|i| Complex::<_>::new(0., PI * (u * i * (i + 1)) as f32 / n as f32).exp())
-        .collect()
-}
+pub use lts_align::lts_align;
