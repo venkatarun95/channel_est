@@ -1,6 +1,6 @@
 use crate::config::ChannelEstConfig;
-use std::collections::VecDeque;
 use num::Complex;
+use std::collections::VecDeque;
 
 enum PktTriggerState {
     /// Skip the first few samples (counts the number of samples so far)
@@ -82,16 +82,18 @@ impl PktTrigger {
 
 #[cfg(test)]
 mod tests {
-    use super::ChannelEstConfig;
     use super::PktTrigger;
+    use crate::config::{ChannelEstConfig, ChannelEstConfigDes};
     use num::Complex;
 
     fn test_config() -> ChannelEstConfig {
-        ChannelEstConfig {
+        ChannelEstConfigDes {
             stabilize_samps: 100,
             power_trig: 0.01,
             pkt_spacing: 20,
+            lts: "data/lts.txt".to_string(),
         }
+        .into()
     }
 
     #[test]
@@ -114,7 +116,9 @@ mod tests {
             assert!(trigger.push_samp(Complex::new(0.9, 1.1)).is_none());
             for i in 0..500 {
                 // Some weird values
-                assert!(trigger.push_samp(Complex::new(i as f32, 2. * i as f32).exp()).is_none());
+                assert!(trigger
+                    .push_samp(Complex::new(i as f32, 2. * i as f32).exp())
+                    .is_none());
             }
             // Some empty values, so it can detect end of packet
             for _ in 0..config.pkt_spacing {
