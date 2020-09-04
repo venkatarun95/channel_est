@@ -3,7 +3,7 @@
 //! <Short Preamble> <Long Training Sequence> [<Data symbols> ...]
 //!
 //! Short Preamble:
-//!  - 16 repeats of a short training sequence
+//!  - 10 repeats of a short training sequence
 //!
 //! Long Preamble:
 //!  - <Guard Interval> 2 * <Long Training Sequence>
@@ -12,7 +12,9 @@
 
 mod config;
 mod lts_align;
+mod parse_packet;
 mod pkt_trigger;
 
+pub use parse_packet::ParsePacket;
 pub use pkt_trigger::PktTrigger;
 pub use lts_align::lts_align;
