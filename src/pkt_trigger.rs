@@ -91,7 +91,8 @@ mod tests {
             stabilize_samps: 100,
             power_trig: 0.01,
             pkt_spacing: 20,
-            lts: "data/lts.txt".to_string(),
+            short_piece_len: 16,
+            lts: None,
         }
         .into()
     }

@@ -37,8 +37,8 @@ mod test {
 
     #[test]
     fn lts_align_example_pkt() {
-        let lts = filename_to_cplx_vec("data/lts.txt".to_string());
-        let pkt = filename_to_cplx_vec("data/example_pkt.txt".to_string());
+        let lts = filename_to_cplx_vec(Some("data/lts-802.11.txt".to_string())).unwrap();
+        let pkt = filename_to_cplx_vec(Some("data/example_pkt.txt".to_string())).unwrap();
 
         assert_eq!(lts_align(&pkt[0..1400], &lts), 171);
     }
