@@ -36,7 +36,7 @@ impl PktTrigger {
     pub fn push_samp(&mut self, samp: Complex<f32>) -> Option<Vec<Complex<f32>>> {
         match self.state {
             PktTriggerState::Skip(skip) => {
-                if skip >= self.config.stabilize_samps - 1 {
+                if skip >= self.config.stabilize_samps {
                     self.state = PktTriggerState::Idle;
                 } else {
                     self.state = PktTriggerState::Skip(skip + 1);
@@ -83,23 +83,13 @@ impl PktTrigger {
 #[cfg(test)]
 mod tests {
     use super::PktTrigger;
-    use crate::config::{ChannelEstConfig, ChannelEstConfigDes};
+    use crate::config::ChannelEstConfig;
     use num::Complex;
-
-    fn test_config() -> ChannelEstConfig {
-        ChannelEstConfigDes {
-            stabilize_samps: 100,
-            power_trig: 0.01,
-            pkt_spacing: 20,
-            short_piece_len: 16,
-            lts: None,
-        }
-        .into()
-    }
 
     #[test]
     fn test_basic_pkt_trigger() {
-        let config = test_config();
+        let mut config = ChannelEstConfig::default();
+        config.stabilize_samps = 100;
         let mut trigger = PktTrigger::new(&config);
 
         // Initialization period can be weird. Samples should be skipped

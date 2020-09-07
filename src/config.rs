@@ -1,6 +1,7 @@
 use num::Complex;
 use rustfft::FFTplanner;
 use serde::Deserialize;
+use std::default::Default;
 use transform_struct::transform_struct;
 
 transform_struct!(
@@ -14,9 +15,10 @@ transform_struct!(
         pub power_trig: f32,
         /// We may assume there are at-least these many samples between packets
         pub pkt_spacing: u64,
-        /// Length of one of the short training sequence pieces (which is repeated 10 times)
-        pub short_piece_len: u64,
         > {
+            /// The short training sequence. This sequence is repeated 10 times
+            pub sts: Option<String>
+            => (option_filename_to_cplx_vec -> Option<Vec<Complex<f32>>>),
             /// Filename where the Long Training Sequence (LTS) is stored. This is read and
             /// converted to a vec of complex numbers by `filename_to_cplx_vec`. We store both the
             /// lts and its FFT. If the FFT element has a magnitude < 1% of the maximum, then we
@@ -27,12 +29,17 @@ transform_struct!(
     }
 );
 
-/// The file storing the LTS sequence is just a list of numbers, each on a separate line
-pub fn filename_to_cplx_vec(fname: Option<String>) -> Option<Vec<Complex<f32>>> {
-    let fname = match fname {
-        Some(fname) => fname,
-        None => return None,
-    };
+impl Default for ChannelEstConfig {
+    fn default() -> Self {
+        ChannelEstConfigDes {
+            stabilize_samps: 0,
+            power_trig: 0.01,
+            pkt_spacing: 20,
+            sts: Some("data/short-802.11.txt".to_string()),
+            lts: Some("data/lts-802.11.txt".to_string())
+        }.into()
+    }
+}
 
 /// The file storing the LTS sequence is just a list of numbers, each on a separate line
 pub fn filename_to_cplx_vec(fname: String) -> Vec<Complex<f32>> {
