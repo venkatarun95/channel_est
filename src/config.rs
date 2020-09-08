@@ -16,13 +16,15 @@ transform_struct!(
         /// We may assume there are at-least these many samples between packets
         pub pkt_spacing: u64,
         > {
-            /// The short training sequence. This sequence is repeated 10 times
+            /// The short training sequence. This sequence is repeated 10 times. It is normalized
+            /// as so0n as it is read
             pub sts: Option<String>
-            => (option_filename_to_cplx_vec -> Option<Vec<Complex<f32>>>),
+            => (read_sts -> Option<Vec<Complex<f32>>>),
             /// Filename where the Long Training Sequence (LTS) is stored. This is read and
             /// converted to a vec of complex numbers by `filename_to_cplx_vec`. We store both the
             /// lts and its FFT. If the FFT element has a magnitude < 1% of the maximum, then we
-            /// store None. This implies that the sub-carrier isn't used
+            /// store None. This implies that the sub-carrier isn't used. LTS is normalized as
+            /// soon as it is read.
             pub lts: Option<String>
             => (read_lts -> Option<(Vec<Complex<f32>>, Vec<Option<Complex<f32>>>)>),
         }
@@ -41,7 +43,8 @@ impl Default for ChannelEstConfig {
     }
 }
 
-/// The file storing the LTS sequence is just a list of numbers, each on a separate line
+/// The file format is a list of numbers, each on a separate line. Lines 2 * i and 2 * i + 1
+/// contain the real and imaginary components of the i^th complex number
 pub fn filename_to_cplx_vec(fname: String) -> Vec<Complex<f32>> {
     let str_data = std::fs::read_to_string(fname).unwrap();
     // Split string into lines and parse floats
@@ -66,12 +69,22 @@ pub fn filename_to_cplx_vec(fname: String) -> Vec<Complex<f32>> {
     res
 }
 
-fn option_filename_to_cplx_vec(fname: Option<String>) -> Option<Vec<Complex<f32>>> {
+/// Normalize so that the RMS = 1
+fn normalize(vals: &mut [Complex<f32>]) {
+    let rms = vals.iter().map(|x| x.norm_sqr()).sum::<f32>().sqrt();
+    for x in vals {
+        *x /= rms;
+    }
+}
+
+fn read_sts(fname: Option<String>) -> Option<Vec<Complex<f32>>> {
     let fname = match fname {
         Some(fname) => fname,
         None => return None,
     };
-    Some(filename_to_cplx_vec(fname))
+    let mut vals = filename_to_cplx_vec(fname);
+    normalize(&mut vals);
+    Some(vals)
 }
 
 pub fn read_lts(fname: Option<String>) -> Option<(Vec<Complex<f32>>, Vec<Option<Complex<f32>>>)> {
@@ -79,7 +92,9 @@ pub fn read_lts(fname: Option<String>) -> Option<(Vec<Complex<f32>>, Vec<Option<
         Some(fname) => fname,
         None => return None,
     };
-    let lts = filename_to_cplx_vec(fname);
+    let mut lts = filename_to_cplx_vec(fname);
+    normalize(&mut lts);
+    let lts = lts;
 
     // FFT of lts. Do it in f64 for extra precision. This is a one-time calculation, so we can
     // invest CPU here
@@ -142,11 +157,11 @@ mod test {
         assert_eq!(v.0.len(), v.1.len());
 
         assert!(v.1[0].is_none());
-        assert!(v.1[1].unwrap().re - 1. < 0.01);
+        assert!(v.1[1].unwrap().re - 1.11 < 0.01);
         for x in v.1 {
             if let Some(x) = x {
                 assert!(x.im < 1e-2);
-                assert!(x.re - 1. < 1e-2 || x.im + 1. < 1e-2);
+                assert!(x.re - 1.11 < 1e-2 || x.im + 1.1 < 1e-2);
             }
         }
     }
