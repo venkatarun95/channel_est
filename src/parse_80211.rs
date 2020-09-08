@@ -2,11 +2,11 @@ use crate::cfo::{correct_cfo, estimate_cfo};
 use crate::config::ChannelEstConfig;
 use crate::equalization::{equalize_symbol, estimate_subcarrier_equalization};
 use crate::lts_align::lts_align;
-use crate::pkt_trigger::PktTrigger;
 use num::Complex;
 
 /// Given a buffer possibly containing a packet (e.g. as detected by `pkt_trigger::PktTrigger`),
-/// returns a parsed version of that packet if it is indeed a packet
+/// returns a parsed version of that packet if it is indeed a packet. Assumes the packet starts
+/// within the first ChannelEstConfig::pkt_spacing samples
 pub fn parse_80211_pkt(samps: &[Complex<f32>], config: &ChannelEstConfig) -> Vec<Complex<f32>> {
     // Lengths of the various piecs
     // Two repeats of the LTS + guard interval
@@ -14,8 +14,10 @@ pub fn parse_80211_pkt(samps: &[Complex<f32>], config: &ChannelEstConfig) -> Vec
     let short_len = 10 * config.sts.as_ref().unwrap().len() as usize;
     assert!(samps.len() > 3 * lts_len / 2 + short_len);
 
+    // The LTS symbol should be contained within this range
+    let lts_bound = config.pkt_spacing as usize + short_len + 5 * lts_len / 2;
     // Sync the packet using LTS so we know where everything is
-    let lts_start = lts_align(samps, &config.lts.as_ref().unwrap().0);
+    let lts_start = lts_align(&samps[..lts_bound], &config.lts.as_ref().unwrap().0);
 
     let short = &samps[lts_start - short_len..lts_start];
     let long = &samps[lts_start..lts_start + 5 * lts_len / 2];
@@ -37,7 +39,6 @@ pub fn parse_80211_pkt(samps: &[Complex<f32>], config: &ChannelEstConfig) -> Vec
     while i < samps.len() - 5 * lts_len / 4 {
         let symbol = &samps[i + lts_len / 4..i + 5 * lts_len / 4];
         let rms = symbol.iter().map(|x| x.norm_sqr()).sum::<f32>().sqrt();
-        println!("{} {}", rms, pkt_rms);
         if rms < 0.1 * pkt_rms {
             break;
         }
@@ -67,7 +68,7 @@ mod test {
         let mut symbols = Vec::new();
         let mut symbols_data = Vec::new();
         let mut rng = rand::thread_rng();
-        for _ in 0..10 {
+        for _ in 0..2 {
             let mut symbol = Vec::new();
             let mut symbol_data = Vec::new();
             for x in &config.lts.as_ref().unwrap().1 {
@@ -91,7 +92,6 @@ mod test {
             // Add cyclic prefix to the symbol
             symbols.extend(&symbol_fft[3 * lts.len() / 4..]);
             symbols.append(&mut symbol_fft);
-            println!("{}", symbol_data.len());
             symbols_data.append(&mut symbol_data);
         }
 
@@ -99,7 +99,7 @@ mod test {
         let mut pkt = Vec::<Complex<f32>>::new();
 
         // Add some silence period
-        pkt.extend(std::iter::repeat(Complex::zero()).take(lts.len() * 2));
+        pkt.extend(std::iter::repeat(Complex::zero()).take(config.pkt_spacing as usize - 1));
 
         // Short preamble
         let sts = config.sts.as_ref().unwrap();
