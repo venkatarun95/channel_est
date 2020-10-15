@@ -14,15 +14,15 @@
 //!  - <Cyclic Prefix> <Symbol>
 //!    The cyclic prefix is 1/4 the size of the symbol. In 802.11, the symbol is 64 samples long
 
-mod cfo;
-mod config;
-mod equalization;
-mod lts_align;
-mod pkt_trigger;
-mod parse_80211;
+pub mod cfo;
+pub mod config;
+pub mod equalization;
+pub mod lts_align;
+pub mod parse_80211;
+pub mod pkt_trigger;
 
 pub use cfo::{correct_cfo, estimate_cfo};
-pub use equalization::{estimate_subcarrier_equalization, equalize_symbol};
+pub use equalization::{equalize_symbol, estimate_subcarrier_equalization};
 pub use lts_align::lts_align;
-pub use pkt_trigger::PktTrigger;
 pub use parse_80211::parse_80211_pkt;
+pub use pkt_trigger::PktTrigger;
