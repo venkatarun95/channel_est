@@ -91,15 +91,15 @@ mod test {
 
         for i in 0..corrected_long.len() {
             // Norms shouldn't change
-            assert!((corrected_long[i].norm() - long[i].norm()).abs() < 1e-6);
+            assert!((corrected_long[i].norm() - long[i].norm()).abs() < 1e-5);
 
             // Check the entire complex number
             if i < lts_len / 2 {
                 assert_eq!(corrected_long[i], Complex::zero());
             } else if i < 3 * lts_len / 2 {
-                assert!((lts[i - lts_len / 2] - corrected_long[i]).norm() < 1e-6);
+                assert!((lts[i - lts_len / 2] - corrected_long[i]).norm() < 1e-5);
             } else {
-                assert!((lts[i - 3 * lts_len / 2] - corrected_long[i]).norm() < 1e-6);
+                assert!((lts[i - 3 * lts_len / 2] - corrected_long[i]).norm() < 1e-5);
             }
         }
     }

@@ -71,7 +71,7 @@ pub fn filename_to_cplx_vec(fname: String) -> Vec<Complex<f32>> {
 
 /// Normalize so that the RMS = 1
 fn normalize(vals: &mut [Complex<f32>]) {
-    let rms = vals.iter().map(|x| x.norm_sqr()).sum::<f32>().sqrt();
+    let rms = (vals.iter().map(|x| x.norm_sqr()).sum::<f32>() / vals.len() as f32).sqrt();
     for x in vals {
         *x /= rms;
     }
@@ -155,13 +155,17 @@ mod test {
         let v = read_lts(Some("data/lts-802.11.txt".to_string())).unwrap();
         assert_eq!(v.0.len(), 64);
         assert_eq!(v.0.len(), v.1.len());
+        assert!((v.0[0] - 1.385).norm() < 1e-3);
+        assert!((v.0[10] - Complex::new(0.008878, -1.021029)).norm() < 1e-3);
 
+        let fft_norm = (v.0.len() as f32).sqrt();
         assert!(v.1[0].is_none());
-        assert!(v.1[1].unwrap().re - 1.11 < 0.01);
+        println!("{} {}", v.1[1].unwrap(), fft_norm);
+        assert!(v.1[1].unwrap().re - 1.11 * fft_norm < 0.1);
         for x in v.1 {
             if let Some(x) = x {
                 assert!(x.im < 1e-2);
-                assert!(x.re - 1.11 < 1e-2 || x.im + 1.1 < 1e-2);
+                assert!(x.re - 1.11 * fft_norm < 0.1 || x.im + 1.11 * fft_norm < 0.1);
             }
         }
     }

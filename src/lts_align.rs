@@ -28,7 +28,12 @@ pub fn lts_align(pkt: &[Complex<f32>], lts: &[Complex<f32>]) -> usize {
     }
 
     // Subtract config.lts.len() to account for the fact that a guard interval is present
-    max_idx - lts.len() / 2
+    if lts.len() / 2 > max_idx {
+        dbg!("Warning: maximum came earlier than expected");
+        0
+    } else {
+        max_idx - lts.len() / 2
+    }
 }
 
 #[cfg(test)]
@@ -66,6 +71,7 @@ mod test {
         let lts = &config.lts.as_ref().unwrap().0;
         assert_eq!(lts.len() % 2, 0);
         pkt.extend(std::iter::repeat(Complex::zero()).take(lts.len() / 2));
+        pkt.extend(lts);
         pkt.extend(lts);
 
         // More junk
