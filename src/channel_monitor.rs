@@ -98,19 +98,21 @@ pub fn run_rx<R: RadioRx, F: FnMut(&[Option<Complex<f32>>])>(
             let pkt = pkt.unwrap();
             println!("Packet detected");
 
-            // The preamble (short + long) is this many samples long. We use an additional
-            // lts.0.len() / 2 samples, so we have some margin for error
-            let preamble_len = 10 * sts.len() + 5 * lts.0.len() / 2 + lts.0.len() / 2;
+            // The preamble (short + long) is this many samples long.
+            assert_eq!(lts.0.len() % 2, 0);
+            let preamble_len = 10 * sts.len() + 5 * lts.0.len() / 2;
             // First align the first LTS. The long preamble will be within a margin of the
             // beginning of the packet. We only pass that to `lts_align` so it doesn't get confused
-            // by what comes after.
-            let first_lts_margin = config.ofdm.pkt_spacing as usize + preamble_len;
+            // by what comes after. We use an additional lts.0.len() / 2 samples, so we have some
+            // margin for error
+            let first_lts_margin = config.ofdm.pkt_spacing as usize + preamble_len + lts.0.len()/2;
             let mut cur_lts_start = lts_align(&pkt[..first_lts_margin], &lts.0);
 
             // Now process each repetition one-by-one
             for i in 0..config.num_repeats {
                 // Figure out where the preambles are
-                let short = &pkt[cur_lts_start - 10 * sts.len()..cur_lts_start];
+                let cur_sts_start = cur_lts_start - 10 * sts.len();
+                let short = &pkt[cur_sts_start..cur_lts_start];
                 let long = &pkt[cur_lts_start..cur_lts_start + 5 * lts.0.len() / 2];
 
                 // Calculate the CFO and correct it in the long preamble
@@ -129,14 +131,16 @@ pub fn run_rx<R: RadioRx, F: FnMut(&[Option<Complex<f32>>])>(
                     let margin = 5;
                     // If margin is so large it includes the previous LTS, it can cause trouble
                     assert!(margin < lts.0.len() / 2);
-                    let expected_start = cur_lts_start + preamble_len;
-                    cur_lts_start = expected_start - margin
+                    let expected_sts_start = cur_sts_start + preamble_len;
+                    let expected_lts_start = cur_lts_start + preamble_len;
+                    cur_lts_start = expected_sts_start - margin
                         + lts_align(
-                            &pkt[expected_start - margin..expected_start + preamble_len],
+                            &pkt[expected_sts_start - margin..expected_sts_start + preamble_len + lts.0.len() / 2],
                             &lts.0,
                         );
-                    if (cur_lts_start as i64 - expected_start as i64).abs() > margin as i64 {
-                        eprintln!("It seems that the LTS drifted more than the expected margin. Skipping the rest of the packet: {} {} {} {}", i, cur_lts_start, expected_start, pkt.len());
+                    if (cur_lts_start as i64 - expected_lts_start as i64).abs() > margin as i64 {
+                        eprintln!("It seems that the LTS drifted more than the expected margin. Skipping the rest of the packet: {} {} {} {}",
+                            i, cur_lts_start, expected_lts_start, pkt.len());
                         break;
                     }
                 }
@@ -163,9 +167,9 @@ fn main() {
         samp_rate: 20_000_000,
         start_freq: 5.5e9,
         max_cfo: 0.1,
-        cfo_drift: 0.000,
-        phase_noise: 0.000,
-        noise: 0.000,
+        cfo_drift: 0.0001,
+        phase_noise: 0.01,
+        noise: 0.01,
         multipath: vec![(2e-6, Complex::new(0.01, 0.01))],
     };
 
@@ -191,8 +195,14 @@ fn main() {
 
     let close_rx = close.clone();
     let monitor_config_rx = monitor_config.clone();
-    let callback = |x: &[Option<Complex<f32>>]| {
-        //println!("{:?}", x);
+    let callback = |est: &[Option<Complex<f32>>]| {
+        for x in est {
+            match x {
+                Some(x) => print!("{:.3}+i{:.3} ", x.re, x.im),
+                None => print!("_ ")
+            }
+        }
+        println!("");
     };
     let rx_handle =
         std::thread::spawn(move || run_rx(&mut rx, &monitor_config_rx, callback, close_rx));
